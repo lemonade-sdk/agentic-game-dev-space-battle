@@ -9,69 +9,107 @@ description: |
 # Boss / AI Agent — Space Blaster  *(Optional — Agent 5)*
 
 ## CRITICAL RULES — READ FIRST
+/no_think
+- Do NOT produce `<think>` blocks. Implement directly.
+- Do NOT re-read game.html to understand structure — the GAME STRUCTURE section
+  below documents it. Jump directly to your task.
 - The ONLY file that exists is `game.html`
 - There is NO `game.js`, NO `src/` folder, NO external scripts
 - Write ALL code inside the `<script>` block of `game.html`
 - Never `import`, `require`, or link any external `.js` file
-- Always return the **complete `game.html`** — every line, no truncation
 
 ## Role
 You add a full boss system into `game.html` on top of the existing game code.
 
+## GAME STRUCTURE — YOUR TOUCH POINTS
+You add a new `SECTION: BOSS` block and make surgical insertions elsewhere.
+
+| Action                                       | Location                                              |
+|----------------------------------------------|-------------------------------------------------------|
+| Add `// === SECTION: BOSS ===` block         | Between `SECTION: GAMEPLAY` and `SECTION: DRAW`       |
+| Add `state.boss = null; state.bossActive = false` | Inside state{} after `enemySpawnTimer`           |
+| Add boss update call                         | Inside `loop()` in `SECTION: LOOP`, before `draw()`  |
+| Extend `checkCollisions()`                   | In `SECTION: PHYSICS`, add boss bullet vs player check|
+| Add boss HUD draw                            | Top of `draw()` in `SECTION: DRAW`                   |
+| Add level 5 trigger                          | In `checkLevelUp()` in `SECTION: GAMEPLAY`            |
+| Stop normal spawning while boss active       | In `spawnEnemyWave()` in `SECTION: GAMEPLAY`          |
+
+## STATE SCHEMA + BOSS EXTENSION
+```js
+const state = {
+  player: null, bullets:[], enemies:[], particles:[], stars:[],
+  score:0, lives:3, level:1, gameOver:false, paused:false, enemySpawnTimer:0,
+  // YOU ADD:
+  boss: null,
+  bossActive: false,
+};
+```
+
 ## Task — add the boss system
 
-1. **Extend `state`**:
+1. **`spawnBoss()`** in new `SECTION: BOSS`:
    ```js
-   state.boss = null;
-   state.bossActive = false;
-   ```
-
-2. **`spawnBoss()`**:
-   ```js
-   {
-     x: canvas.width/2, y: 120, w: 110, h: 85,
+   { x: canvas.width/2, y: 120, w: 110, h: 85,
      hp: 50, maxHp: 50, phase: 1,
      speed: 1.5, dir: 1,
      shootTimer: 0, shootRate: 55,
      color: '#a29bfe', bullets: [],
-     name: 'THE VOID SOVEREIGN'
-   }
+     name: 'THE VOID SOVEREIGN' }
    ```
 
-3. **Boss movement per phase**:
+2. **`updateBoss()`** in `SECTION: BOSS`:
    - Phase 1 — left-right patrol, bounces off walls
-   - Phase 2 (≤50% HP) — adds periodic downward charge then return
+   - Phase 2 (≤50% HP) — periodic downward charge then return
    - Phase 3 (≤20% HP) — erratic zigzag, increased speed
-
-4. **Bullet patterns**:
    - `fanShot(boss, count=5, spread=60°)` — phase 1
    - `spiralShot(boss, count=8)` — phase 2
-   - Both simultaneously at double rate — phase 3
+   - Both at double rate — phase 3
+   - Boss bullets stored in `state.boss.bullets[]`, moved each frame
+   - Boss death: `explode(boss.x, boss.y, '#a29bfe', 40)`, `state.score += 2000`, `state.bossActive = false`, advance to level 6
 
-5. **Boss bullets** — stored in `state.boss.bullets[]`, update position each frame,
-   wire into player collision check in `checkCollisions()`
+3. **Boss HUD** in `SECTION: DRAW` (draw at very top, before world elements):
+   - Dark bar across top of canvas when `state.bossActive`
+   - Purple fill proportional to HP percentage
+   - Boss name + phase label in `#a29bfe`
 
-6. **Boss HUD** — drawn at the very top of canvas when `state.bossActive`:
-   - Dark bar behind, purple fill proportional to HP, label with boss name and phase
-
-7. **Trigger at level 5** — add to `checkLevelUp()`:
+4. **Trigger** — add to `checkLevelUp()`:
    ```js
    if (state.level === 5 && !state.bossActive) {
-     state.bossActive = true;
-     state.boss = spawnBoss();
+     state.bossActive = true; state.boss = spawnBoss();
    }
    ```
-   Stop normal enemy spawning while `state.bossActive` is true.
 
-8. **Boss death** — massive `explode()`, `state.score += 2000`, `state.bossActive = false`,
-   resume normal spawning, advance to level 6
+5. **Spawn gate** — in `spawnEnemyWave()`: `if (state.bossActive) return;`
 
-## Output
-Return the **complete `game.html`** from `<!DOCTYPE html>` to `</html>`.
-Mark your section with:
+6. **Collision** — in `checkCollisions()`: iterate `state.boss.bullets`, AABB vs player
+
+## Output — DIFF STYLE
+Do NOT return the full file. Provide:
+
 ```
-// [BOSS-AI] boss spawn, movement, bullets, HUD
+1. New SECTION: BOSS block (full content — this is net-new):
+   [complete code for spawnBoss, updateBoss, fanShot, spiralShot]
+
+2. In SECTION: STATE, inside state{}, after `enemySpawnTimer: 0,` add:
+   [code]
+
+3. In SECTION: LOOP, inside loop(), before draw(), add:
+   if (state.bossActive && !state.gameOver && !state.paused) updateBoss();
+
+4. In SECTION: PHYSICS, checkCollisions(), after enemy-vs-player block, add:
+   [boss bullet vs player code]
+
+5. In SECTION: DRAW, draw(), very top (after clear, before stars), add:
+   [boss HUD code — only when state.bossActive]
+
+6. In SECTION: GAMEPLAY, checkLevelUp(), after level++, add:
+   [boss spawn trigger code]
+
+7. In SECTION: GAMEPLAY, spawnEnemyWave(), first line, add:
+   if (state.bossActive) return;
 ```
+
+If explicitly asked for the full file, return it with `// [BOSS-AI] boss spawn, movement, bullets, HUD` marker.
 
 ---
 

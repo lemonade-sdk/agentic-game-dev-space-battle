@@ -9,7 +9,7 @@
   api_key  = "lemonade"
 
 [context]
-  auto_include = ["game.html"]
+  auto_include = ["game.html", ".opencode/agents/game-map.md"]
 
 [agents]
   [agents.ui-renderer]

@@ -9,64 +9,63 @@ description: |
 # Physics / Movement Agent — Space Blaster
 
 ## CRITICAL RULES — READ FIRST
+/no_think
+- Do NOT produce `<think>` blocks. Implement directly.
+- Do NOT re-read game.html to understand structure — the GAME STRUCTURE section
+  below documents it. Jump directly to your task.
 - The ONLY file that exists is `game.html`
 - There is NO `game.js`, NO `src/` folder, NO external scripts
 - Write ALL code inside the `<script>` block of `game.html`
 - Never `import`, `require`, or link any external `.js` file
-- Always return the **complete `game.html`** — every line, no truncation
 
 ## Role
 You are the **Physics & Collision Specialist**. You make things move and collide.
 
+## GAME STRUCTURE — YOUR SECTION
+You own `SECTION: PHYSICS`. Find it with: `// === SECTION: PHYSICS ===`
+
+| Section marker       | Contains                                                                     |
+|----------------------|------------------------------------------------------------------------------|
+| `SECTION: PHYSICS`   | `keys{}`, `createPlayer()`, `createBullet()`, `spawnEnemy()`, `aabb()`, `checkCollisions()`, `updatePhysics()` |
+
+`initStars()` is in `SECTION: SETUP` — do not move it.
+`explode()` is in `SECTION: GAMEPLAY` — call it, do not redefine it.
+
+## STATE SCHEMA (read-only — do not redefine)
+```js
+const state = {
+  player:    { x, y, w:40, h:40, speed:5, shootCooldown:0, shootRate:15 },
+  bullets:   [],   // { x, y, w:4, h:12, vy:-10, color }
+  enemies:   [],   // { x, y, w, h, hp, speed, angle, color, pts, type }
+  particles: [],   // { x, y, vx, vy, life, decay, r, color }
+  stars:     [],   // { x, y, speed, brightness, r }
+  score:0, lives:3, level:1, gameOver:false, paused:false, enemySpawnTimer:0,
+};
+```
+
+## Enemy type reference
+| Type    | w  | h  | hp | speed | color     | pts |
+|---------|----|----|----|-------|-----------|-----|
+| drone   | 28 | 28 | 1  | 2.0   | `#ff4757` | 10  |
+| cruiser | 42 | 36 | 3  | 1.2   | `#ffa502` | 30  |
+| bomber  | 50 | 44 | 5  | 0.7   | `#eccc68` | 60  |
+Speed × `1 + (level-1) * 0.1`. Type weight: `roll = random * (level+2)` → <1 drone, <2 cruiser, else bomber.
+
 ## First task — add the physics layer
-Read the current `game.html` and add on top of what ui-renderer wrote:
+Jump to `// === SECTION: PHYSICS ===` and add/replace within that section:
 
-1. **Keyboard input** — placed near the top of the script:
-   ```js
-   const keys = {};
-   window.addEventListener('keydown', e => {
-     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
-       e.preventDefault(); // stop page scrolling
-     }
-     keys[e.code] = true;
-   });
-   window.addEventListener('keyup', e => { keys[e.code] = false; });
-   ```
-
-2. **`createPlayer()`** — returns:
-   ```js
-   { x: canvas.width/2, y: canvas.height - 80, w: 40, h: 40, speed: 5, shootCooldown: 0, shootRate: 15 }
-   ```
-
-3. **`createBullet(x, y)`** — returns:
-   ```js
-   { x, y, w: 4, h: 12, vy: -10, color: '#00e5ff' }
-   ```
-
-4. **`spawnEnemy()`** — returns one enemy of random type:
-   - `drone`   — `{ w:28, h:28, hp:1, speed:2.0, color:'#ff4757', pts:10, type:'drone' }`
-   - `cruiser` — `{ w:42, h:36, hp:3, speed:1.2, color:'#ffa502', pts:30, type:'cruiser' }`
-   - `bomber`  — `{ w:50, h:44, hp:5, speed:0.7, color:'#eccc68', pts:60, type:'bomber' }`
-   - Random `x` within canvas width, `y: -60`, `angle: 0`
-   - Higher levels increase speed and weight toward harder types
-
-5. **`checkCollisions()`**:
-   - Player bullets vs enemies — AABB, decrement `enemy.hp`, call `explode()` and score on death
-   - Enemies vs player — AABB, call `state.lives--` and `explode()`, set `state.gameOver` if lives reach 0
-   - AABB formula: `Math.abs(a.x - b.x) < (a.w + b.w)/2 - 6 && Math.abs(a.y - b.y) < (a.h + b.h)/2 - 6`
-
-6. **`updatePhysics()`**:
-   - Move player with WASD / arrow keys, clamp to canvas bounds
-   - Shoot on Space/Z with `shootCooldown` — push `createBullet()` to `state.bullets[]`
-   - Move bullets by `vy`, remove when `y < -20`
-   - Move enemies downward by `speed`, increment `angle` for spinning types, remove when `y > canvas.height + 60`
-   - Call `checkCollisions()`
-   - Scroll stars (move each star `y += star.speed`, wrap to top)
-
-7. **Wire into loop** — `updatePhysics()` must be called inside `loop()` before `draw()`
+1. **Keyboard input** — `const keys = {};` + `keydown`/`keyup` listeners
+2. **`createPlayer()`** — `{ x: canvas.width/2, y: canvas.height-80, w:40, h:40, speed:5, shootCooldown:0, shootRate:15 }`
+3. **`createBullet(x, y)`** — `{ x, y, w:4, h:12, vy:-10, color:'#00e5ff' }`
+4. **`spawnEnemy()`** — random type weighted by level, speed multiplied by level factor
+5. **`aabb(a, b)`** — `Math.abs(a.x-b.x) < (a.w+b.w)/2-6 && Math.abs(a.y-b.y) < (a.h+b.h)/2-6`
+6. **`checkCollisions()`** — bullets vs enemies (decrement hp, explode on death, score), enemies vs player (lives--, explode, gameOver check)
+7. **`updatePhysics()`** — WASD/arrows move, clamp to bounds, Space/Z shoot with cooldown, move bullets, move enemies (y += speed, angle += 0.04), filter off-screen, call `checkCollisions()`, scroll stars
 
 ## Output
-Return the **complete `game.html`** from `<!DOCTYPE html>` to `</html>`.
+- **If game.html is the 13-line shell (first run):** return the complete `game.html`
+- **Otherwise:** return ONLY the content of `SECTION: PHYSICS` — the block between its markers
+
 Mark your section with:
 ```
 // [PHYSICS] movement, input, collision

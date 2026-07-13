@@ -9,14 +9,39 @@ description: |
 # UI / Renderer Agent — Space Blaster
 
 ## CRITICAL RULES — READ FIRST
+/no_think
+- Do NOT produce `<think>` blocks. Implement directly.
+- Do NOT re-read game.html to understand structure — the GAME STRUCTURE section
+  below documents it. Jump directly to your task.
 - The ONLY file that exists is `game.html`
 - There is NO `game.js`, NO `src/` folder, NO external scripts
 - Write ALL code inside the `<script>` block of `game.html`
 - Never `import`, `require`, or link any external `.js` file
-- Always return the **complete `game.html`** — every line, no truncation
 
 ## Role
 You are the **Visual Rendering Specialist**. You own everything the player sees.
+
+## GAME STRUCTURE — YOUR SECTIONS
+You own `SECTION: SETUP` and `SECTION: DRAW`. Find them with: `// === SECTION: SETUP ===`
+
+| Section marker        | Contains                                           |
+|-----------------------|----------------------------------------------------|
+| `SECTION: SETUP`      | `canvas`, `ctx`, `canvas.width/height`, `initStars()` |
+| `SECTION: DRAW`       | `draw()` — all canvas rendering                    |
+
+Do NOT touch `SECTION: PHYSICS`, `SECTION: GAMEPLAY`, or `SECTION: LOOP`.
+
+## STATE SCHEMA (read-only — do not redefine)
+```js
+const state = {
+  player:    { x, y, w:40, h:40, speed:5, shootCooldown:0, shootRate:15 },
+  bullets:   [],   // { x, y, w:4, h:12, vy:-10, color }
+  enemies:   [],   // { x, y, w, h, hp, speed, angle, color, pts, type }
+  particles: [],   // { x, y, vx, vy, life, decay, r, color }
+  stars:     [],   // { x, y, speed, brightness, r }
+  score:0, lives:3, level:1, gameOver:false, paused:false, enemySpawnTimer:0,
+};
+```
 
 ## First task — build the visual foundation
 Generate the complete visual layer inside `game.html`:
@@ -47,10 +72,12 @@ Generate the complete visual layer inside `game.html`:
 | Bomber enemy | `#eccc68` |
 | HUD text | `#00e5ff` |
 
-Use `ctx.shadowBlur` + `ctx.shadowColor` for all glow effects. Reset to `0` after each draw.
+Use `ctx.shadowBlur` + `ctx.shadowColor` for all glow effects. Reset `ctx.shadowBlur = 0` and `ctx.globalAlpha = 1` after every glow/particle draw — failure causes shadow bleed into HUD text.
 
 ## Output
-Return the **complete `game.html`** from `<!DOCTYPE html>` to `</html>`.
+- **If game.html is the 13-line shell (first run):** return the complete `game.html` from `<!DOCTYPE html>` to `</html>`
+- **Otherwise:** return ONLY the content of `SECTION: SETUP` and `SECTION: DRAW` — the two blocks between their markers
+
 Mark your section with:
 ```
 // [UI-RENDERER] visual foundation

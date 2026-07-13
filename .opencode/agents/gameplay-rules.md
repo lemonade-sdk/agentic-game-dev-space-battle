@@ -9,76 +9,60 @@ description: |
 # Gameplay Rules Agent — Space Blaster
 
 ## CRITICAL RULES — READ FIRST
+/no_think
+- Do NOT produce `<think>` blocks. Implement directly.
+- Do NOT re-read game.html to understand structure — the GAME STRUCTURE section
+  below documents it. Jump directly to your task.
 - The ONLY file that exists is `game.html`
 - There is NO `game.js`, NO `src/` folder, NO external scripts
 - Write ALL code inside the `<script>` block of `game.html`
 - Never `import`, `require`, or link any external `.js` file
-- Always return the **complete `game.html`** — every line, no truncation
 
 ## Role
 You are the **Gameplay Systems Specialist**. You wire up the rules and boot the game.
 
+## GAME STRUCTURE — YOUR SECTIONS
+You own `SECTION: STATE` and `SECTION: GAMEPLAY`. Find them with their markers.
+
+| Section marker       | Contains                                                                          |
+|----------------------|-----------------------------------------------------------------------------------|
+| `SECTION: STATE`     | `const state = { ... }` — authoritative state declaration (must be first in script) |
+| `SECTION: GAMEPLAY`  | `explode()`, `checkLevelUp()`, `spawnEnemyWave()`, `resetGame()`, R/P key listeners |
+| `SECTION: LOOP`      | `loop()` and bootstrap — you complete the loop body and bootstrap calls           |
+
+Do NOT redefine `updatePhysics()` (in PHYSICS) or `draw()` (in DRAW).
+
+## STATE SCHEMA (authoritative — you define this)
+```js
+const state = {
+  player:          null,
+  bullets:         [],
+  enemies:         [],
+  particles:       [],
+  stars:           [],
+  score:           0,
+  lives:           3,
+  level:           1,
+  gameOver:        false,
+  paused:          false,
+  enemySpawnTimer: 0,
+};
+```
+
 ## First task — add the gameplay layer
-Read the current `game.html` and add on top of what ui-renderer and physics-movement wrote:
-
-1. **`state` object** — declare this at the very top of the `<script>` block, before all other code:
-   ```js
-   const state = {
-     player:          null,
-     bullets:         [],
-     enemies:         [],
-     particles:       [],
-     stars:           [],
-     score:           0,
-     lives:           3,
-     level:           1,
-     gameOver:        false,
-     paused:          false,
-     enemySpawnTimer: 0,
-   };
-   ```
-
+1. **`state` object** — at the very top of the `<script>` block, before all other code (in `SECTION: STATE`)
 2. **`explode(x, y, color, count=18)`** — push `count` particles into `state.particles[]`:
-   ```js
-   { x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
-     life: 1, decay: 0.025 + Math.random()*0.02, r: 2 + Math.random()*4, color }
-   ```
-
+   `{ x, y, vx: cos(angle)*speed, vy: sin(angle)*speed, life:1, decay:0.025+random*0.02, r:2+random*4, color }`
 3. **`checkLevelUp()`** — `if (state.score >= state.level * 500) state.level++`
-
-4. **`spawnEnemyWave()`** — called each frame via timer:
-   ```js
-   state.enemySpawnTimer++;
-   const interval = Math.max(30, 90 - state.level * 8);
-   if (state.enemySpawnTimer >= interval) {
-     state.enemies.push(spawnEnemy());
-     state.enemySpawnTimer = 0;
-   }
-   ```
-
-5. **Particle tick** inside the game loop — update and remove dead particles:
-   ```js
-   state.particles = state.particles.filter(p => {
-     p.x += p.vx; p.y += p.vy; p.life -= p.decay; return p.life > 0;
-   });
-   ```
-
-6. **`resetGame()`** — reset all state fields, re-create player, re-init stars, call `requestAnimationFrame(loop)`
-
-7. **Key listeners for game controls**:
-   ```js
-   window.addEventListener('keydown', e => {
-     if (e.code === 'KeyR' && state.gameOver) resetGame();
-     if (e.code === 'KeyP') state.paused = !state.paused;
-   });
-   ```
-
-8. **Complete the `loop()` function**:
+4. **`spawnEnemyWave()`** — timer: `interval = Math.max(30, 90 - state.level * 8)`
+5. **Particle tick** — inside `loop()`: `state.particles = state.particles.filter(p => { p.x+=p.vx; p.y+=p.vy; p.life-=p.decay; return p.life>0; })`
+6. **`resetGame()`** — reset all state fields, `state.player = createPlayer()`, `initStars()` (loop is already running via RAF, no second call needed)
+7. **Key listeners** — `KeyR` restarts on gameOver, `KeyP` toggles pause
+8. **Complete `loop()`**:
    ```js
    function loop() {
      if (!state.gameOver && !state.paused) {
-       updatePhysics();
-       spawnEnemyWave();
+       updatePhysics(); spawnEnemyWave();
        state.particles = state.particles.filter(p => { p.x+=p.vx; p.y+=p.vy; p.life-=p.decay; return p.life>0; });
        checkLevelUp();
      }
@@ -86,16 +70,12 @@ Read the current `game.html` and add on top of what ui-renderer and physics-move
      requestAnimationFrame(loop);
    }
    ```
-
-9. **Bootstrap at the very bottom** of the script — after all functions are defined:
-   ```js
-   state.player = createPlayer();
-   initStars();
-   loop();
-   ```
+9. **Bootstrap** at very bottom: `state.player = createPlayer(); initStars(); loop();`
 
 ## Output
-Return the **complete `game.html`** from `<!DOCTYPE html>` to `</html>`.
+- **If game.html is the 13-line shell (first run):** return the complete `game.html`
+- **Otherwise:** return ONLY `SECTION: STATE`, `SECTION: GAMEPLAY`, and `SECTION: LOOP`
+
 Mark your section with:
 ```
 // [GAMEPLAY] state, scoring, spawning, game loop
