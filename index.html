@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space Blaster — Booth</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      color: #00e5ff;
+    }
+
+    /* ---- Layout: header bar on top, game stage fills the rest ---- */
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Top header bar ---- */
+    header {
+      flex: 0 0 auto;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: #03060f;
+      border-bottom: 1px solid #0a1628;
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.15);
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #00e5ff;
+      text-shadow: 0 0 8px rgba(0, 229, 255, 0.7);
+      user-select: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    button {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 8px 18px;
+      background: transparent;
+      color: #00e5ff;
+      border: 1px solid #00e5ff;
+      border-radius: 4px;
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+      transition: background 0.15s, box-shadow 0.15s, color 0.15s;
+    }
+    button:hover {
+      background: rgba(0, 229, 255, 0.12);
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.6);
+    }
+    button:active {
+      transform: translateY(1px);
+    }
+
+    /* Verify gets the orange engine-glow accent from the game */
+    button.verify {
+      color: #ff6b35;
+      border-color: #ff6b35;
+      box-shadow: 0 0 10px rgba(255, 107, 53, 0.35);
+    }
+    button.verify:hover {
+      background: rgba(255, 107, 53, 0.12);
+      box-shadow: 0 0 16px rgba(255, 107, 53, 0.6);
+    }
+
+    /* ---- Game stage ---- */
+    .stage {
+      flex: 1 1 auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #000;
+    }
+
+    /* The embedded game keeps its native 800x600 size */
+    iframe#game-frame {
+      width: 800px;
+      height: 600px;
+      border: 1px solid #0a1628;
+      box-shadow: 0 0 24px rgba(0, 229, 255, 0.12);
+      background: #03060f;
+    }
+
+    /* ---- Reset confirmation modal ---- */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .modal-overlay[hidden] { display: none; }
+
+    .modal {
+      width: 420px;
+      max-width: calc(100% - 40px);
+      background: #03060f;
+      border: 1px solid #ff6b35;
+      border-radius: 6px;
+      box-shadow: 0 0 28px rgba(255, 107, 53, 0.4);
+      padding: 24px;
+      text-align: center;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #ff6b35;
+      text-shadow: 0 0 8px rgba(255, 107, 53, 0.6);
+      margin-bottom: 14px;
+    }
+    .modal-body {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #b8c6cc;
+      margin-bottom: 22px;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .modal-confirm {
+      color: #ff6b35;
+      border-color: #ff6b35;
+      box-shadow: 0 0 10px rgba(255, 107, 53, 0.35);
+    }
+    .modal-confirm:hover {
+      background: rgba(255, 107, 53, 0.12);
+      box-shadow: 0 0 16px rgba(255, 107, 53, 0.6);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">🚀 SPACE BLASTER</div>
+    <div class="controls">
+      <button class="reset" onclick="onReset()">Launch OpenCode with Lemonade </button>
+      <button class="verify" onclick="onVerify()">Verify</button>
+    </div>
+  </header>
+
+  <div class="stage">
+    <!-- The workshop game. Agents keep editing game.html; this wrapper never changes. -->
+    <iframe id="game-frame" src="game.html" title="Space Blaster game"></iframe>
+  </div>
+
+  <!-- Reset confirmation -->
+  <div id="reset-modal" class="modal-overlay" hidden>
+    <div class="modal">
+      <div class="modal-title">⚠ RESET SESSION</div>
+      <p class="modal-body">
+        This erases every change made to the game this session and closes the
+        open terminals. The next player starts from the base game and can build
+        the gameplay-rules from scratch.
+      </p>
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="closeResetModal()">Cancel</button>
+        <button class="modal-confirm" onclick="confirmReset()">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // Booth controls
+    // ============================================================
+    const frame = document.getElementById('game-frame');
+    const resetModal = document.getElementById('reset-modal');
+    const confirmBtn = resetModal.querySelector('.modal-confirm');
+
+    // ----- Reset: confirm -> restore base game.html + close terminals -----
+    function onReset() { resetModal.hidden = false; }
+    function closeResetModal() { resetModal.hidden = true; }
+
+    async function confirmReset() {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Resetting…';
+      try {
+        const res = await fetch('/reset', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || ('HTTP ' + res.status));
+        }
+        // Reload the game from the freshly restored base (cache-busted).
+        frame.src = 'game.html?t=' + Date.now();
+      } catch (err) {
+        alert('Reset failed: ' + err.message);
+      } finally {
+        resetModal.hidden = true;
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Reset';
+      }
+    }
+
+    // Dismiss the modal on overlay click or Escape.
+    resetModal.addEventListener('click', e => {
+      if (e.target === resetModal) closeResetModal();
+    });
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !resetModal.hidden) closeResetModal();
+    });
+
+    // TODO: generate a QR code (overlay/modal) so the user can scan and
+    //       collect points.
+    function onVerify() {
+      console.log('[booth] Verify clicked — placeholder, no action yet');
+    }
+  </script>
+</body>
+</html>
