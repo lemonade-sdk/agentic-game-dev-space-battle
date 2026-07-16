@@ -1,16 +1,15 @@
   [booth] "GET / HTTP/1.1" 200 -
-  [booth] "GET /game.html HTTP/1.1" 200 -
-  [booth] "GET / HTTP/1.1" 200 -
-  [booth] "GET /game.html HTTP/1.1" 200 -
-  [booth] "GET / HTTP/1.1" 200 -
-  [booth] "GET /game.html HTTP/1.1" 200 -
-  [booth] "GET / HTTP/1.1" 200 -
+  [booth] "GET /gpu-stream HTTP/1.1" 200 -
   [booth] "GET /game.html HTTP/1.1" 200 -
   [booth] "POST /reset HTTP/1.1" 200 -
-  [booth] "GET /game.html?t=1783995553281 HTTP/1.1" 200 -
+  [booth] "GET /game.html?t=1784238089574 HTTP/1.1" 200 -
 pkill: pattern that searches for process name longer than 15 characters will result in zero matches
 Try `pkill -f' option to match against the complete command line.
-  [booth] "POST /reset HTTP/1.1" 200 -
-  [booth] "GET /game.html?t=1783995587147 HTTP/1.1" 200 -
-pkill: pattern that searches for process name longer than 15 characters will result in zero matches
-Try `pkill -f' option to match against the complete command line.
+  [booth] "GET / HTTP/1.1" 200 -
+  [booth] "GET /game.html HTTP/1.1" 200 -
+  [booth] "GET /gpu-stream HTTP/1.1" 200 -
+  [booth] code 404, message File not found
+  [booth] "GET /favicon.ico HTTP/1.1" 404 -
+  [booth] "GET / HTTP/1.1" 200 -
+  [booth] "GET /game.html HTTP/1.1" 200 -
+  [booth] "GET /gpu-stream HTTP/1.1" 200 -

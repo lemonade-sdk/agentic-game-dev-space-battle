@@ -81,13 +81,16 @@
       box-shadow: 0 0 16px rgba(255, 107, 53, 0.6);
     }
 
-    /* ---- Game stage ---- */
+    /* ---- Game stage: live-logs panel on the left, game on the right ---- */
     .stage {
       flex: 1 1 auto;
       display: flex;
+      flex-direction: row;
+      gap: 20px;
       justify-content: center;
       align-items: center;
       background: #000;
+      padding: 16px;
     }
 
     /* The embedded game keeps its native 800x600 size */
@@ -98,6 +101,57 @@
       box-shadow: 0 0 24px rgba(0, 229, 255, 0.12);
       background: #03060f;
     }
+
+    /* ---- Left "Lemonade Logs" panel (live local-model / GPU activity) ---- */
+    .side-panel {
+      width: 340px;
+      height: 600px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Bright-yellow heading button */
+    button.lemonade {
+      width: 100%;
+      color: #0a0a0a;
+      background: #ffe100;
+      border: 1px solid #ffe100;
+      box-shadow: 0 0 14px rgba(255, 225, 0, 0.55);
+      font-size: 15px;
+    }
+    button.lemonade:hover {
+      background: #fff34d;
+      box-shadow: 0 0 20px rgba(255, 225, 0, 0.85);
+    }
+
+    .side-desc {
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #b8c6cc;
+    }
+    .side-desc .model {
+      color: #ffe100;
+      font-weight: bold;
+      text-shadow: 0 0 6px rgba(255, 225, 0, 0.5);
+    }
+
+    /* Streaming amd-smi console — small, non-scrolling; clears on overflow */
+    .gpu-log {
+      flex: 0 0 auto;
+      height: 150px;
+      overflow: hidden;
+      background: #03060f;
+      border: 1px solid #143b1f;
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 1.45;
+      color: #7dffb0;
+      white-space: pre;
+    }
+    .gpu-log .status { color: #ff6b35; }
 
     /* ---- Reset confirmation modal ---- */
     .modal-overlay {
@@ -166,6 +220,17 @@
   </header>
 
   <div class="stage">
+    <!-- Left: live local-model / GPU activity from amd-smi -->
+    <aside class="side-panel" id="side-panel">
+      <button class="lemonade" onclick="openLemonadeDashboard()">⚡ Lemonade Logs</button>
+      <p class="side-desc">
+        Notice the <span class="model">Qwen3.6-35B-A3B</span> model on the left
+        panel and the logs flowing in — showcasing the real-time local model
+        execution on the AMD GPU.
+      </p>
+      <pre class="gpu-log" id="gpu-log"><span class="status">connecting to amd-smi…</span></pre>
+    </aside>
+
     <!-- The workshop game. Agents keep editing game.html; this wrapper never changes. -->
     <iframe id="game-frame" src="game.html" title="Space Blaster game"></iframe>
   </div>
@@ -231,6 +296,38 @@
     function onVerify() {
       console.log('[booth] Verify clicked — placeholder, no action yet');
     }
+
+    // ----- Lemonade dashboard button -----
+    // The yellow button opens the Lemonade server dashboard in a new tab.
+    const LEMONADE_DASHBOARD_URL = 'http://localhost:13305/';
+    function openLemonadeDashboard() {
+      window.open(LEMONADE_DASHBOARD_URL, '_blank', 'noopener');
+    }
+
+    // ----- GPU live logs (amd-smi streamed via SSE) -----
+    const gpuLog = document.getElementById('gpu-log');
+    let gpuStream = null;
+
+    function appendGpuLine(text) {
+      gpuLog.textContent += (gpuLog.textContent ? '\n' : '') + text;
+      // Small, non-scrolling console: once it fills up, wipe it and start the
+      // newest line fresh at the top instead of scrolling.
+      if (gpuLog.scrollHeight > gpuLog.clientHeight) {
+        gpuLog.textContent = text;
+      }
+    }
+
+    function startGpuStream() {
+      if (gpuStream) return;
+      gpuLog.textContent = 'connecting to amd-smi…';
+      gpuStream = new EventSource('/gpu-stream');
+      gpuStream.onmessage = e => appendGpuLine(e.data);
+      // EventSource auto-reconnects on error; just note the blip.
+      gpuStream.onerror = () => appendGpuLine('… stream interrupted, retrying …');
+    }
+
+    // Begin streaming on load.
+    startGpuStream();
   </script>
 </body>
 </html>

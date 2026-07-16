@@ -1,8 +1,9 @@
 ---
 name: boss-ai
 description: |
-  [OPTIONAL — Agent 5] Adds a dramatic 3-phase boss enemy with movement
-  patterns, bullet-hell attacks, phase transitions, and a boss health bar.
+  [OPTIONAL — Agent 5] Adds a dramatic 3-phase boss enemy that appears
+  IMMEDIATELY at level 1 (the instant the game runs) with movement patterns,
+  bullet-hell attacks, phase transitions, and a boss health bar.
   Invoke after the base game is fully working.
 ---
 
@@ -10,7 +11,11 @@ description: |
 
 ## CRITICAL RULES — READ FIRST
 /no_think
-- Do NOT produce `<think>` blocks. Implement directly.
+- Do NOT produce `<think>` blocks or reasoning. Implement directly.
+- **THE BOSS MUST APPEAR AT LEVEL 1 — the instant the game loads, not after any
+  score or level threshold. Spawn it in the bootstrap AND in `resetGame()`.**
+- Output ONLY the code blocks requested — no prose, no explanations, no
+  restating the plan, no re-printing unchanged code. Less text = faster.
 - Do NOT re-read game.html to understand structure — the GAME STRUCTURE section
   below documents it. Jump directly to your task.
 - The ONLY file that exists is `game.html`
@@ -31,7 +36,7 @@ You add a new `SECTION: BOSS` block and make surgical insertions elsewhere.
 | Add boss update call                         | Inside `loop()` in `SECTION: LOOP`, before `draw()`  |
 | Extend `checkCollisions()`                   | In `SECTION: PHYSICS`, add boss bullet vs player check|
 | Add boss HUD draw                            | Top of `draw()` in `SECTION: DRAW`                   |
-| Add level 5 trigger                          | In `checkLevelUp()` in `SECTION: GAMEPLAY`            |
+| Spawn boss at LEVEL 1 (on run + on restart)  | Bootstrap (end of `SECTION: LOOP`) and `resetGame()` |
 | Stop normal spawning while boss active       | In `spawnEnemyWave()` in `SECTION: GAMEPLAY`          |
 
 ## STATE SCHEMA + BOSS EXTENSION
@@ -65,19 +70,24 @@ const state = {
    - `spiralShot(boss, count=8)` — phase 2
    - Both at double rate — phase 3
    - Boss bullets stored in `state.boss.bullets[]`, moved each frame
-   - Boss death: `explode(boss.x, boss.y, '#a29bfe', 40)`, `state.score += 2000`, `state.bossActive = false`, advance to level 6
+   - Boss death: `explode(boss.x, boss.y, '#a29bfe', 40)`, `state.score += 2000`, `state.bossActive = false` (normal enemy waves then resume — do NOT gate the boss on any level)
 
 3. **Boss HUD** in `SECTION: DRAW` (draw at very top, before world elements):
    - Dark bar across top of canvas when `state.bossActive`
    - Purple fill proportional to HP percentage
    - Boss name + phase label in `#a29bfe`
 
-4. **Trigger** — add to `checkLevelUp()`:
-   ```js
-   if (state.level === 5 && !state.bossActive) {
-     state.bossActive = true; state.boss = spawnBoss();
-   }
-   ```
+4. **Trigger — spawn at LEVEL 1, immediately on run** (NOT via any score/level check):
+   - At the **bootstrap** (end of `SECTION: LOOP`, on the line right before
+     `loop();`) add:
+     ```js
+     state.bossActive = true;
+     state.boss = spawnBoss();
+     ```
+   - Add the SAME two lines inside `resetGame()` (after the player and stars are
+     reset) so pressing **R** re-summons the boss for the next player.
+   - Do NOT add any `state.level === N` gate anywhere — the boss is on screen
+     from the very first frame.
 
 5. **Spawn gate** — in `spawnEnemyWave()`: `if (state.bossActive) return;`
 
@@ -102,8 +112,9 @@ Do NOT return the full file. Provide:
 5. In SECTION: DRAW, draw(), very top (after clear, before stars), add:
    [boss HUD code — only when state.bossActive]
 
-6. In SECTION: GAMEPLAY, checkLevelUp(), after level++, add:
-   [boss spawn trigger code]
+6. At the bootstrap (end of SECTION: LOOP, before `loop();`) AND inside
+   resetGame(), add the immediate LEVEL 1 boss spawn:
+   state.bossActive = true; state.boss = spawnBoss();
 
 7. In SECTION: GAMEPLAY, spawnEnemyWave(), first line, add:
    if (state.bossActive) return;

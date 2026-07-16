@@ -11,7 +11,9 @@ description: |
 
 ## CRITICAL RULES — READ FIRST
 /no_think
-- Do NOT produce `<think>` blocks. Implement directly.
+- Do NOT produce `<think>` blocks or reasoning. Implement directly.
+- Output ONLY the code blocks requested — no prose, no explanations, no
+  restating the plan, no re-printing unchanged code. Less text = faster.
 - Do NOT re-read game.html to understand structure — the GAME STRUCTURE section
   below documents it. Jump directly to your task.
 - The ONLY file that exists is `game.html`
