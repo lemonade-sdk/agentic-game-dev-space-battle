@@ -155,7 +155,10 @@ def start_fresh_session() -> None:
     if os.environ.get("BOOTH_NO_AUTOSTART"):
         return
     model = os.environ.get("BOOTH_MODEL", DEFAULT_MODEL)
+    # `bash -lc` is non-interactive, so ~/.bashrc returns before its PATH
+    # export for the opencode installer; add the default install dir here.
     inner = (
+        'export PATH="$HOME/.opencode/bin:$PATH"; '
         f"cd {shlex.quote(str(ROOT))} && "
         f"lemonade launch opencode -m {shlex.quote(model)}; "
         "echo; echo '[booth] session ended — press Enter to close'; read _"
