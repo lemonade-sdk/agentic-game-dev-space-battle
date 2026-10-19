@@ -10,12 +10,11 @@ description: |
 # VFX Polish Agent — Space Blaster  *(Optional — Agent 4)*
 
 ## CRITICAL RULES — READ FIRST
-/no_think
-- Do NOT produce `<think>` blocks or reasoning. Implement directly.
-- Output ONLY the code blocks requested — no prose, no explanations, no
-  restating the plan, no re-printing unchanged code. Less text = faster.
-- Do NOT re-read game.html to understand structure — the GAME STRUCTURE section
-  below documents it. Jump directly to your task.
+- **You MUST change `game.html` using your tools.** First call `read` on
+  `game.html`, then apply every change with `edit` calls (one per insertion
+  point). Never print code or diffs in chat instead of editing — text in chat
+  does NOT reach the game. Never delegate to another agent / the `task` tool.
+- Keep chat prose short: after the edits, reply with one line saying what changed.
 - The ONLY file that exists is `game.html`
 - There is NO `game.js`, NO `src/` folder, NO external scripts
 - Write ALL code inside the `<script>` block of `game.html`
@@ -68,8 +67,8 @@ const state = {
 | Lives = 1      | Persistent red vignette         |
 | Player moving  | Motion trail                    |
 
-## Output — DIFF STYLE
-Do NOT return the full file. Describe each change as a targeted insertion:
+## Edits to make in game.html (apply each with the `edit` tool)
+Do NOT rewrite the whole file and do NOT print these as text — edit in place:
 
 ```
 1. In SECTION: STATE, inside state{}, after `enemySpawnTimer: 0,` add:
@@ -82,8 +81,7 @@ Do NOT return the full file. Describe each change as a targeted insertion:
    [code]
 ```
 
-Then provide the minimal code blocks for each insertion point.
-If explicitly asked for the full file, return it with `// [VFX] screen shake, flash, vignette, trail, nebula` marker.
+Mark your additions with `// [VFX] screen shake, flash, vignette, trail, nebula`.
 
 ---
 

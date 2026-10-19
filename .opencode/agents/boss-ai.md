@@ -10,14 +10,15 @@ description: |
 # Boss / AI Agent — Space Blaster  *(Optional — Agent 5)*
 
 ## CRITICAL RULES — READ FIRST
-/no_think
-- Do NOT produce `<think>` blocks or reasoning. Implement directly.
+- **You MUST change `game.html` using your tools.** First call `read` on
+  `game.html`, then apply every change with `edit` calls (one per insertion
+  point). Never print code or diffs in chat instead of editing — text in chat
+  does NOT reach the game. Never delegate to another agent / the `task` tool.
+- Keep chat prose short: after the edits, reply with one line saying what changed.
+- If the user's request describes a different boss (theme, attacks, name),
+  follow the user's request and use the spec below only as the default.
 - **THE BOSS MUST APPEAR AT LEVEL 1 — the instant the game loads, not after any
   score or level threshold. Spawn it in the bootstrap AND in `resetGame()`.**
-- Output ONLY the code blocks requested — no prose, no explanations, no
-  restating the plan, no re-printing unchanged code. Less text = faster.
-- Do NOT re-read game.html to understand structure — the GAME STRUCTURE section
-  below documents it. Jump directly to your task.
 - The ONLY file that exists is `game.html`
 - There is NO `game.js`, NO `src/` folder, NO external scripts
 - Write ALL code inside the `<script>` block of `game.html`
@@ -93,8 +94,8 @@ const state = {
 
 6. **Collision** — in `checkCollisions()`: iterate `state.boss.bullets`, AABB vs player
 
-## Output — DIFF STYLE
-Do NOT return the full file. Provide:
+## Edits to make in game.html (apply each with the `edit` tool)
+Do NOT rewrite the whole file and do NOT print these as text — edit in place:
 
 ```
 1. New SECTION: BOSS block (full content — this is net-new):
@@ -120,7 +121,7 @@ Do NOT return the full file. Provide:
    if (state.bossActive) return;
 ```
 
-If explicitly asked for the full file, return it with `// [BOSS-AI] boss spawn, movement, bullets, HUD` marker.
+Mark the new section with `// [BOSS-AI] boss spawn, movement, bullets, HUD`.
 
 ---
 
