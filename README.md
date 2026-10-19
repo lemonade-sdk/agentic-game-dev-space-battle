@@ -1,164 +1,118 @@
-# 🚀 Space Blaster — Agentic Game Development Workshop
+# 🚀 Space Blaster — Agentic Game Development with pi
 
-> **Watch three specialized AI agents build a space-shooter from a blank file —
-> live, on your local GPU. No cloud. No API keys.**
+> **Ask AI agents to add features to a space shooter — live, on your local AMD
+> GPU. No cloud. No API keys.**
 
----
-
-## How this workshop works
-
-You start with a single nearly-empty `game.html`. Three pre-written AI
-sub-agents build it from scratch in front of you using **OpenCode** connected
-to **Lemonade Server** running locally on the **AMD Ryzen AI Max 395 (Strix Halo)**.
-
-Once the game is running, you take over and push the agents further.
+The whole game is one file, `game.html`. Five AI agents edit it from inside
+**[pi](https://pi.dev)**, running on the **Qwen3.6-35B-A3B-ThinkingCoder** model
+served locally by **[Lemonade Server](https://lemonade-server.ai)** on the
+**AMD Ryzen AI Max 395 (Strix Halo)**. You tell an agent what to build, it edits
+`game.html`, and you refresh the browser to play the result.
 
 ---
 
-## Project structure
-
-```
-space-blaster-workshop/
-├── game.html                  ← the one file everything gets built into
-└── .opencode/
-    ├── config.toml            ← points OpenCode at Lemonade (pre-filled)
-    └── agents/
-        ├── ui-renderer.md         Agent 1 — canvas, draw loop, HUD, particles
-        ├── physics-movement.md    Agent 2 — input, movement, collision
-        ├── gameplay-rules.md      Agent 3 — state, score, levels, game-over
-        ├── vfx-polish.md          Agent 4 (optional) — screen shake, trails
-        └── boss-ai.md             Agent 5 (optional) — boss fights
-```
-
----
-
-## Setup
-
-> No Node.js. No pip. No npm. Just two apt installs and a git clone.
-
-### 1 — Install Lemonade Server
-
-Lemonade runs large AI models locally on your AMD GPU via ROCm.
-Full details at: **https://lemonade-server.ai**
+## Step 1 — Install Lemonade Server (once per machine)
 
 ```bash
 sudo add-apt-repository ppa:lemonade-team/stable
 sudo apt install lemonade-server
 ```
 
-### 2 — Install OpenCode
+You don't need to install pi or the model yourself. Step 3 does it.
+
+## Step 2 — Get the workshop
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
+git clone https://github.com/lemonade-sdk/agentic-game-dev-space-battle.git
+cd agentic-game-dev-space-battle
 ```
 
-### 3 — Clone the workshop repo
+## Step 3 — Start the booth
 
 ```bash
-git clone https://github.com/iswaryaalex/space-battle-agentic-game-dev.git
-cd space-battle-agentic-game-dev
+./serve.sh
 ```
 
----
+This:
 
-## Workshop flow
+1. resets `game.html` to the starting game (`game-base.html`)
+2. installs pi if it is missing. If the pi installer asks you to confirm,
+   press **Enter**. It brings its own Node.js, so no sudo is needed.
+3. adds the `Qwen3.6-35B-A3B-ThinkingCoder` model to Lemonade if it isn't there
+   yet. **The first run downloads about 22 GB.**
+4. starts the booth server in the background on port 8000
 
-### Step 1 — Launch OpenCode with Lemonade
+## Step 4 — Open the booth page
 
-From inside the project folder:
+Open **http://localhost:8000** in a browser.
 
-```bash
-lemonade launch opencode
+- **Right:** the game. It already works, so try it:
+
+  | Key | Action |
+  |-----|--------|
+  | `WASD` / Arrows | Move |
+  | `Space` | Shoot |
+  | `P` | Pause |
+  | `R` | Restart after game over |
+
+- **Left:** live GPU memory use from `amd-smi`, so you can watch the local
+  model work. **⚡ Lemonade Logs** opens the Lemonade dashboard.
+
+## Step 5 — Launch pi
+
+Click **Launch pi with Lemonade**, then **Reset**.
+
+A terminal opens with pi already running on the Qwen model in the workshop
+folder. Every click also resets `game.html` and closes the previous terminals,
+so each player starts fresh.
+
+## Step 6 — Check the agents are loaded
+
+In pi, type `/`. You should see one command per agent:
+
+| Command | What it owns |
+|---------|--------------|
+| `/ui-renderer` | Everything you see: canvas, star-field, ships, particles, HUD |
+| `/physics-movement` | Input, movement, bullets, collisions |
+| `/gameplay-rules` | Score, levels, enemy spawning, lives, game over |
+| `/vfx-polish` | Screen shake, hit flashes, damage vignette, trails, nebula |
+| `/boss-ai` | A 3-phase boss with attack patterns and a health bar |
+
+The agents are defined in `.pi/agents/`, one Markdown file each.
+
+## Step 7 — Give an agent a task
+
+Type the agent's command, then what you want:
+
+```
+/vfx-polish add screen shake on player hit and red vignette when lives = 1
 ```
 
-Lemonade starts the inference server and launches OpenCode in one command.
-You will be prompted to select a model recipe:
+The agent runs as a sub-agent with its own context. Its box shows a timer,
+then `thinking… (N lines)`, then `✎ editing game.html · N lines` as the code
+streams in. When it finishes, pi replies with a sentence on what changed.
 
-```
-Select a recipe to import and use with Opencode:
-  0) Browse downloaded models
-  1) GLM-4.7-Flash-GGUF-NoThinking.json
-  2) GLM-4.7-Flash-GGUF-ThinkingCoder.json
-  3) Gemma-4-26B-A4B-NoThinking.json
-  4) Gemma-4-26B-A4B-ThinkingCoder.json
-  5) Qwen3.5-35B-A3B-NoThinking.json
-  6) Qwen3.5-35B-A3B-ThinkingCoder.json
-  7) Qwen3.6-35B-A3B-NoThinking.json
-  8) Qwen3.6-35B-A3B-ThinkingCoder.json
-```
+You can also run `/agents`, pick an agent from the list, and type the request as
+a plain message.
 
-**Select option 8 — `Qwen3.6-35B-A3B-ThinkingCoder`**
+## Step 8 — Play the new version
 
-> Option 5 (NoThinking) is faster. Option 6 reasons through the code more
-> carefully — recommended for the best results during the workshop.
+Refresh the booth page (**F5**). The game reloads with the agent's changes.
 
-### Step 2 — Confirm agents are loaded
+Repeat Steps 7 and 8 as often as you like.
 
-Inside OpenCode, type:
+## Step 9 — Push the agents further
 
-```
-/agents
-```
+Try these, one at a time, putting the agent's command first.
 
-You should see:
-```
-ui-renderer
-physics-movement
-gameplay-rules
-vfx-polish      (optional)
-boss-ai         (optional)
-```
-
-You are all set. Now build the game.
-
----
-
-## Build the game — invoke agents in order
-
-### Step 3 — Visual layer
-```
-@ui-renderer build the visual foundation of the game
-```
-→ Canvas, star-field, ship art, enemy shapes, HUD, and draw loop written into `game.html`
-
-### Step 4 — Physics layer
-```
-@physics-movement add player movement, shooting, and collision detection
-```
-→ Ship moves, bullets fire, enemies fall, hits register
-
-### Step 5 — Gameplay layer
-```
-@gameplay-rules add scoring, levels, enemy spawning, lives, and game-over
-```
-→ Fully playable game. Open `game.html` in your browser:
-
-```bash
-xdg-open game.html
-```
-
----
-
-## Controls
-| Key | Action |
-|-----|--------|
-| `WASD` / Arrows | Move |
-| `Space` | Shoot |
-| `P` | Pause |
-| `R` | Restart |
-
----
-
-## Attendee challenges — push the agents further
-
-### `@ui-renderer`
+**`/ui-renderer`**
 ```
 add a pulsing cyan ring around the player when shield > 0
 add a warp-speed animation when the level increases
 make explosions leave a smoke cloud that fades slowly
 ```
 
-### `@physics-movement`
+**`/physics-movement`**
 ```
 add a dodge-roll on Shift with invincibility frames and 2s cooldown
 make cruiser enemies strafe side to side while descending
@@ -166,7 +120,7 @@ add a homing missile on the X key
 make enemies shoot back at the player starting at level 4
 ```
 
-### `@gameplay-rules`
+**`/gameplay-rules`**
 ```
 add a score combo — consecutive kills within 1.5s multiply points
 add a shield power-up that drops from bombers with 15% chance
@@ -174,65 +128,48 @@ save the high score to localStorage and show it on game-over
 add a survival wave at level 3 — only drones for 10 seconds
 ```
 
----
-
-## Optional — expand to 4 or 5 agents
-
-Uncomment the relevant agent in `.opencode/config.toml`, then:
-
-### Agent 4 — VFX Polish
+**`/vfx-polish`**
 ```
-@vfx-polish add screen shake on player hit and red vignette when lives = 1
-@vfx-polish add an animated nebula drifting across the star-field
-@vfx-polish add a motion trail behind the player ship
+add an animated nebula drifting across the star-field
+add a motion trail behind the player ship
 ```
 
-### Agent 5 — Boss AI
+**`/boss-ai`**
 ```
-@boss-ai add a 3-phase boss called The Void Sovereign that spawns at level 5
+add a 3-phase boss called The Void Sovereign that spawns at level 5
 ```
+
+## Step 10 — Hand over to the next player
+
+Click **Launch pi with Lemonade** → **Reset** again.
 
 ---
 
 ## Troubleshooting
 
-**Arrow keys not working** — click the canvas to give it focus, or ask:
+**Arrow keys don't move the ship.** Click the game to give it focus, or ask:
 ```
-@physics-movement arrow keys not working — fix keyboard focus on the canvas
+/physics-movement arrow keys not working — fix keyboard focus on the canvas
 ```
 
-**Wrong model selected** — exit OpenCode, run `lemonade launch opencode` again
-and select option 7 or 8.
+**An agent broke the game.** Click **Launch pi with Lemonade** → **Reset** to
+go back to the starting game.
 
-**Agent broke the game**
+**The `/ui-renderer`-style commands are missing.** pi was started some other
+way and skipped the project's `.pi/` folder. Close it and start pi from the
+booth page, or from the workshop folder with:
 ```bash
-git checkout game.html   # revert to last working state
+./launch_pi.sh
 ```
 
-Commit after each working feature:
+**Use a different model.** Start the booth with `BOOTH_MODEL` set to a
+Lemonade model name, e.g. the faster non-thinking variant:
 ```bash
-git add game.html && git commit -m "feat: what you added"
+BOOTH_MODEL=Qwen3.6-35B-A3B-NoThinking ./serve.sh
 ```
 
----
-
-## Architecture
-
+**Stop the booth server.**
+```bash
+pkill -f booth_server.py
 ```
-  AMD Ryzen AI Max 395 — Strix Halo — Ubuntu 24.04 + ROCm
-  ┌────────────────────────────────────────────────────┐
-  │                                                    │
-  │  lemonade launch opencode                          │
-  │  └─► Lemonade Server  (on-device GPU inference)   │
-  │       └─► Qwen3.6-35B-A3B-ThinkingCoder           │
-  │                                                    │
-  │  OpenCode TUI                                      │
-  │  ├─ @ui-renderer      ──► ui-renderer.md           │
-  │  ├─ @physics-movement ──► physics-movement.md      │
-  │  ├─ @gameplay-rules   ──► gameplay-rules.md        │
-  │  ├─ @vfx-polish       ──► vfx-polish.md  (opt)    │
-  │  └─ @boss-ai          ──► boss-ai.md     (opt)     │
-  │                 ↓                                  │
-  │            game.html  ←  single file, double-click │
-  └────────────────────────────────────────────────────┘
-```
+Its log is in `booth_server.log`.

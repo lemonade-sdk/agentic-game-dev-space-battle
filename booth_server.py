@@ -5,8 +5,8 @@ Serves the booth wrapper (index.html) and the working game.html, and exposes a
 single POST /reset endpoint that:
 
   1. Restores game.html from the pristine game-base.html, and
-  2. Closes the attendee's opencode session + gnome-terminal windows so the
-     next player starts from scratch.
+  2. Closes the attendee's pi session + gnome-terminal windows and opens a
+     fresh pi session, so the next player starts from scratch.
 
 The server is meant to be launched DETACHED from any terminal (see serve.sh),
 so closing every gnome-terminal window during a reset never kills the server.
@@ -29,10 +29,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 
-# Model to pre-select for opencode after a reset. This is the deterministic
-# equivalent of picking the model from the "lemonade launch opencode" menu
-# (formerly "option 9"). Override with the BOOTH_MODEL env var.
-DEFAULT_MODEL = "Qwen3.6-35B-A3B-ThinkingCoder"
+# Installs pi if it is missing, then runs `lemonade launch pi` from the repo
+# root. It also holds the default model (override with the BOOTH_MODEL env var).
+PI_LAUNCHER = ROOT / "launch_pi.sh"
+
+# Matches the pi CLI and the sub-agents it spawns: `node …/node_modules/.bin/pi`
+# (pi installer) or `node /usr/bin/pi` (npm -g), but not e.g. /usr/bin/pipewire.
+PI_PROCESS_PATTERN = r"[/.]bin/pi( |$)|pi-coding-agent/"
 BASE_GAME = ROOT / "game-base.html"
 WORKING_GAME = ROOT / "game.html"
 
@@ -121,7 +124,7 @@ def restore_base() -> bool:
 
 def cleanup_terminals() -> None:
     """End the attendee's agent session, close all gnome-terminal windows, and
-    open a fresh opencode session for the next visitor.
+    open a fresh pi session for the next visitor.
 
     The booth server runs detached (its own session), so it is not a child of
     gnome-terminal-server and survives the window kills.
@@ -132,35 +135,37 @@ def cleanup_terminals() -> None:
     """
     if os.environ.get("BOOTH_SKIP_CLEANUP"):
         return
-    # End the opencode agent + its launcher first (leaves the Lemonade
-    # inference server warm for the next player).
-    subprocess.run(["pkill", "-f", "opencode"], check=False)
+    # End pi (and any sub-agents it spawned) + its launcher first (leaves the
+    # Lemonade inference server warm for the next player).
+    subprocess.run(["pkill", "-f", PI_PROCESS_PATTERN], check=False)
     subprocess.run(["pkill", "-f", "lemonade launch"], check=False)
     # A single gnome-terminal-server owns every window; killing it closes them.
-    subprocess.run(["pkill", "-x", "gnome-terminal-server"], check=False)
+    # Match the full command line: `pkill -x` only sees the 15-character
+    # process name ("gnome-terminal-") and never matches.
+    subprocess.run(["pkill", "-f", "gnome-terminal-server"], check=False)
     # Let the old terminal server fully exit before opening a fresh window.
     time.sleep(1.5)
     start_fresh_session()
 
 
 def start_fresh_session() -> None:
-    """Open a new gnome-terminal in the booth folder and launch opencode with
-    the model pre-selected, so the next visitor can prompt @gameplay-rules
-    immediately.
+    """Open a new gnome-terminal in the booth folder running launch_pi.sh,
+    which installs pi if needed and launches it on the Lemonade model, so the
+    next visitor can prompt /gameplay-rules immediately.
 
-    Running from the booth folder is what lets opencode discover
-    .opencode/agents/. Passing -m replaces the manual model-menu pick
-    ("option 9"). Set BOOTH_NO_AUTOSTART=1 to skip this.
+    The launcher runs from the booth folder, which is what lets pi discover
+    .pi/, and passes -m in place of the manual model-menu pick. Set
+    BOOTH_MODEL to choose another model, BOOTH_NO_AUTOSTART=1 to skip this.
     """
     if os.environ.get("BOOTH_NO_AUTOSTART"):
         return
-    model = os.environ.get("BOOTH_MODEL", DEFAULT_MODEL)
-    # `bash -lc` is non-interactive, so ~/.bashrc returns before its PATH
-    # export for the opencode installer; add the default install dir here.
+    # Pass the model explicitly: gnome-terminal does not reliably forward this
+    # process's environment to the new window.
+    launch = [str(PI_LAUNCHER)]
+    if os.environ.get("BOOTH_MODEL"):
+        launch.append(os.environ["BOOTH_MODEL"])
     inner = (
-        'export PATH="$HOME/.opencode/bin:$PATH"; '
-        f"cd {shlex.quote(str(ROOT))} && "
-        f"lemonade launch opencode -m {shlex.quote(model)}; "
+        f"{shlex.join(launch)}; "
         "echo; echo '[booth] session ended — press Enter to close'; read _"
     )
     subprocess.Popen(
