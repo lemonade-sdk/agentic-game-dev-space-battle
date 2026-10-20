@@ -12,6 +12,7 @@ tools: read, edit, write
 ## CRITICAL RULES — READ FIRST
 - Whatever villain the user requests to add needs to be added in Level1
 - The ONLY file that exists is `game.html`
+- Use game-base.html as the game base, build on top of it
 - There is NO `game.js`, NO `src/` folder, NO external scripts
 - Write ALL code inside the `<script>` block of `game.html`
 - Never `import`, `require`, or link any external `.js` file
