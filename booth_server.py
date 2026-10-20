@@ -5,11 +5,14 @@ Serves the booth wrapper (index.html) and the working game.html, and exposes a
 single POST /reset endpoint that:
 
   1. Restores game.html from the pristine game-base.html, and
-  2. Closes the attendee's pi session + gnome-terminal windows and opens a
-     fresh pi session, so the next player starts from scratch.
+  2. Closes the attendee's pi session + terminal windows and opens a fresh pi
+     session, so the next player starts from scratch.
 
-The server is meant to be launched DETACHED from any terminal (see serve.sh),
-so closing every gnome-terminal window during a reset never kills the server.
+The server is meant to be launched DETACHED from any terminal (see serve.sh /
+serve.ps1), so closing the terminal windows during a reset never kills it.
+
+Runs on Linux (gnome-terminal, amd-smi) and Windows (a conhost window per pi
+session, GPU performance counters via gpu_monitor.ps1).
 
 Stdlib only — no third-party dependencies, matching the rest of the repo.
 """
@@ -28,14 +31,27 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+IS_WINDOWS = os.name == "nt"
 
 # Installs pi if it is missing, then runs `lemonade launch pi` from the repo
 # root. It also holds the default model (override with the BOOTH_MODEL env var).
-PI_LAUNCHER = ROOT / "launch_pi.sh"
+PI_LAUNCHER = ROOT / ("launch_pi.ps1" if IS_WINDOWS else "launch_pi.sh")
 
 # Matches the pi CLI and the sub-agents it spawns: `node …/node_modules/.bin/pi`
 # (pi installer) or `node /usr/bin/pi` (npm -g), but not e.g. /usr/bin/pipewire.
 PI_PROCESS_PATTERN = r"[/.]bin/pi( |$)|pi-coding-agent/"
+
+# Windows equivalent, matched against full command lines: pi (`node
+# …\pi-launcher.js` + `node …\pi-coding-agent\…`), its `lemonade.exe launch`
+# parent, and the conhost window + PowerShell running launch_pi.ps1. The
+# Lemonade server itself (`lemonade-server` / LemonadeServer.exe) stays warm.
+WIN_SESSION_PATTERN = (
+    r"pi-launcher\.js|pi-coding-agent[\\/]|"
+    r"lemonade(\.exe)?\"?\s+launch|launch_pi\.ps1"
+)
+
+# Prefer PowerShell 7 when installed; Windows PowerShell 5.1 always exists.
+POWERSHELL = (shutil.which("pwsh") or "powershell.exe") if IS_WINDOWS else None
 BASE_GAME = ROOT / "game-base.html"
 WORKING_GAME = ROOT / "game.html"
 
@@ -53,6 +69,13 @@ GPU_STREAM_PATH = "/gpu-stream"
 # the meaningful GPU-usage signal, so we distil each row down to that.
 GPU_MONITOR_CMD = ["amd-smi", "monitor", "-p", "-u", "-v", "-t", "--csv", "-w", "1"]
 
+# amd-smi does not ship for Windows; gpu_monitor.ps1 prints the same CSV shape
+# from the Windows GPU performance counters instead.
+if IS_WINDOWS:
+    GPU_MONITOR_CMD = [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                       "-File", str(ROOT / "gpu_monitor.ps1"),
+                       "-ParentPid", str(os.getpid())]
+
 # amd-smi is itself a Python program that block-buffers stdout when piped, so in
 # infinite watch mode its rows would never reach us. PYTHONUNBUFFERED forces each
 # sample to flush immediately (also lets the read loop notice a dropped client).
@@ -66,6 +89,10 @@ _gpu_children_lock = threading.Lock()
 
 
 def _kill_gpu_child(proc) -> None:
+    if IS_WINDOWS:
+        # gpu_monitor.ps1 samples in-process, so there is no tree to kill.
+        proc.kill()
+        return
     try:
         os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
     except (ProcessLookupError, PermissionError):
@@ -109,6 +136,8 @@ def format_gpu_row(cols: dict) -> str:
         extras.append(f"GFX {cols['gfx_clk']} MHz")
     if val("hotspot_temperature"):
         extras.append(f"{cols['hotspot_temperature']}°C")
+    if val("gpu_util"):  # only gpu_monitor.ps1 (Windows) reports this
+        extras.append(f"GPU {cols['gpu_util']}%")
     if extras:
         line += "  ·  " + "  ·  ".join(extras)
     return line
@@ -135,6 +164,11 @@ def cleanup_terminals() -> None:
     """
     if os.environ.get("BOOTH_SKIP_CLEANUP"):
         return
+    if IS_WINDOWS:
+        kill_windows_session()
+        time.sleep(1)
+        start_fresh_session()
+        return
     # End pi (and any sub-agents it spawned) + its launcher first (leaves the
     # Lemonade inference server warm for the next player).
     subprocess.run(["pkill", "-f", PI_PROCESS_PATTERN], check=False)
@@ -159,6 +193,9 @@ def start_fresh_session() -> None:
     """
     if os.environ.get("BOOTH_NO_AUTOSTART"):
         return
+    if IS_WINDOWS:
+        start_windows_session()
+        return
     # Pass the model explicitly: gnome-terminal does not reliably forward this
     # process's environment to the new window.
     launch = [str(PI_LAUNCHER)]
@@ -174,6 +211,56 @@ def start_fresh_session() -> None:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
+    )
+
+
+def kill_windows_session() -> None:
+    """Windows: kill every process tree whose command line matches
+    WIN_SESSION_PATTERN — pi + sub-agents, `lemonade launch`, and the conhost
+    window hosting launch_pi.ps1 (killing its tree closes the window)."""
+    # The pattern goes in through the environment to dodge quoting; $PID keeps
+    # this query's own PowerShell (whose command line names it) off the list.
+    query = (
+        "Get-CimInstance Win32_Process | Where-Object { "
+        "$_.ProcessId -ne $PID -and $_.CommandLine -match $env:BOOTH_KILL_PATTERN "
+        "} | ForEach-Object { $_.ProcessId }"
+    )
+    result = subprocess.run(
+        [POWERSHELL, "-NoProfile", "-Command", query],
+        capture_output=True, text=True, check=False,
+        env={**os.environ, "BOOTH_KILL_PATTERN": WIN_SESSION_PATTERN},
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    for pid in result.stdout.split():
+        if pid.isdigit() and int(pid) != os.getpid():
+            subprocess.run(["taskkill", "/T", "/F", "/PID", pid],
+                           capture_output=True, check=False,
+                           creationflags=subprocess.CREATE_NO_WINDOW)
+
+
+def start_windows_session() -> None:
+    """Windows: open a console window in the booth folder running
+    launch_pi.ps1. It is hosted by conhost.exe explicitly (not handed to
+    Windows Terminal), so kill_windows_session() can close it by killing the
+    tree — a killed Windows Terminal tab would stay open with an exit code."""
+    def ps_quote(s: str) -> str:
+        return "'" + s.replace("'", "''") + "'"
+
+    launch = f"& {ps_quote(str(PI_LAUNCHER))}"
+    if os.environ.get("BOOTH_MODEL"):
+        launch += f" -Model {ps_quote(os.environ['BOOTH_MODEL'])}"
+    inner = (
+        f"{launch}; "
+        "Write-Host ''; Write-Host '[booth] session ended - press Enter to close'; "
+        "[void](Read-Host)"
+    )
+    subprocess.Popen(
+        ["conhost.exe", POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass",
+         "-Command", inner],
+        cwd=str(ROOT),
+        # Without a console of its own, conhost attaches to the server's
+        # hidden one and exits at once instead of opening a window.
+        creationflags=subprocess.CREATE_NEW_CONSOLE,
     )
 
 
@@ -202,8 +289,8 @@ class BoothHandler(http.server.SimpleHTTPRequestHandler):
         lines are dropped. The amd-smi child runs in its own process group so it
         can be killed cleanly when the visitor's browser goes away.
         """
-        if not shutil.which("amd-smi"):
-            self.send_error(503, "amd-smi not available")
+        if not shutil.which(GPU_MONITOR_CMD[0]):
+            self.send_error(503, f"{GPU_MONITOR_CMD[0]} not available")
             return
         try:
             self.send_response(200)
@@ -211,7 +298,7 @@ class BoothHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "no-cache, no-store")
             self.send_header("Connection", "keep-alive")
             self.end_headers()
-        except (BrokenPipeError, ConnectionResetError):
+        except ConnectionError:  # incl. Windows' ConnectionAbortedError
             return
 
         proc = subprocess.Popen(
@@ -221,7 +308,8 @@ class BoothHandler(http.server.SimpleHTTPRequestHandler):
             text=True,
             bufsize=1,
             env=GPU_MONITOR_ENV,
-            start_new_session=True,
+            **({"creationflags": subprocess.CREATE_NO_WINDOW} if IS_WINDOWS
+               else {"start_new_session": True}),
         )
         with _gpu_children_lock:
             _gpu_children.add(proc)
@@ -243,6 +331,9 @@ class BoothHandler(http.server.SimpleHTTPRequestHandler):
                 if line and not self._sse(line):
                     break  # browser disconnected
         finally:
+            # The client is gone: don't wait on the socket for a keep-alive
+            # follow-up request (on Windows that read raises and logs a trace).
+            self.close_connection = True
             _kill_gpu_child(proc)
             with _gpu_children_lock:
                 _gpu_children.discard(proc)
@@ -255,7 +346,7 @@ class BoothHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(("data: " + text + "\n\n").encode())
             self.wfile.flush()
             return True
-        except (BrokenPipeError, ConnectionResetError):
+        except ConnectionError:  # incl. Windows' ConnectionAbortedError
             return False
 
     def do_POST(self):

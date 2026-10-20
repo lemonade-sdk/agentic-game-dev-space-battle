@@ -11,12 +11,19 @@ served locally by **[Lemonade Server](https://lemonade-server.ai)** on the
 
 ---
 
+> **On Windows?** Every step works the same — just use the Windows commands
+> shown under each step. See [Windows notes](#windows-notes) for what differs.
+
 ## Step 1 — Install Lemonade Server (once per machine)
 
 ```bash
 sudo add-apt-repository ppa:lemonade-team/stable
 sudo apt install lemonade-server
 ```
+
+**Windows:** install Lemonade Server from
+[lemonade-server.ai](https://lemonade-server.ai) and
+[Python 3](https://www.python.org/downloads/).
 
 You don't need to install pi or the model yourself. Step 3 does it.
 
@@ -32,6 +39,9 @@ cd agentic-game-dev-space-battle
 ```bash
 ./serve.sh
 ```
+
+**Windows:** run `serve.cmd` (or double-click it). It wraps `serve.ps1`, so no
+execution-policy change is needed.
 
 This:
 
@@ -161,15 +171,42 @@ booth page, or from the workshop folder with:
 ```bash
 ./launch_pi.sh
 ```
+(Windows: `powershell -ExecutionPolicy Bypass -File .\launch_pi.ps1`)
 
 **Use a different model.** Start the booth with `BOOTH_MODEL` set to a
 Lemonade model name, e.g. the faster non-thinking variant:
 ```bash
 BOOTH_MODEL=Qwen3.6-35B-A3B-NoThinking ./serve.sh
 ```
+```powershell
+$env:BOOTH_MODEL = 'Qwen3.6-35B-A3B-NoThinking'; .\serve.cmd   # Windows
+```
 
 **Stop the booth server.**
 ```bash
 pkill -f booth_server.py
 ```
+On Windows: `powershell -ExecutionPolicy Bypass -File .\stop.ps1`.
 Its log is in `booth_server.log`.
+
+---
+
+## Windows notes
+
+| Linux | Windows |
+|-------|---------|
+| `serve.sh` | `serve.cmd` → `serve.ps1` |
+| `launch_pi.sh` | `launch_pi.ps1` (`-InstallOnly`, `-Model NAME`) |
+| `pkill -f booth_server.py` | `stop.ps1` |
+| pi opens in a `gnome-terminal` window | pi opens in its own console window |
+| GPU panel streams `amd-smi` | GPU panel streams Windows GPU counters (`gpu_monitor.ps1`) |
+
+- **GPU panel.** `amd-smi` isn't available on Windows, so `gpu_monitor.ps1`
+  reads the same counters Task Manager uses. On the Strix Halo the model sits
+  in shared memory, so "VRAM" is the Radeon's dedicated + shared usage, out of
+  the dedicated size plus the shared budget (half of system RAM). It also
+  shows GPU utilization.
+- **Reset** closes only the booth's pi console windows (found by their
+  `launch_pi.ps1` command line), not your other terminals.
+- **pi's installer** (`pi.dev/install.ps1`) may offer to install Git for
+  Windows. Accept it: pi uses Git Bash for its shell tool.

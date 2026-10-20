@@ -228,7 +228,7 @@
         panel and the logs flowing in — showcasing the real-time local model
         execution on the AMD GPU.
       </p>
-      <pre class="gpu-log" id="gpu-log"><span class="status">connecting to amd-smi…</span></pre>
+      <pre class="gpu-log" id="gpu-log"><span class="status">connecting to GPU monitor…</span></pre>
     </aside>
 
     <!-- The workshop game. Agents keep editing game.html; this wrapper never changes. -->
@@ -319,7 +319,7 @@
 
     function startGpuStream() {
       if (gpuStream) return;
-      gpuLog.textContent = 'connecting to amd-smi…';
+      gpuLog.textContent = 'connecting to GPU monitor…';
       gpuStream = new EventSource('/gpu-stream');
       gpuStream.onmessage = e => appendGpuLine(e.data);
       // EventSource auto-reconnects on error; just note the blip.
